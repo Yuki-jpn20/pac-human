@@ -1,7 +1,7 @@
 use bevy::{
     prelude::*,
     time::FixedTimestep,
-    sprite::collide_aabb::{collide, Collision},
+    sprite::collide_aabb::{collide},
 };
 use rand::prelude::random;
 
@@ -16,7 +16,7 @@ fn main() {
         .add_startup_system(setup_camera)
         .add_startup_system(spawn_snake)
         .add_startup_system(spawn_enemy)
-        .add_startup_system(spawn_wall)
+        //.add_startup_system(spawn_wall)
         .add_event::<GameOverEvent>()
         //.add_system(snake_movement_input.before(move_snake))
         .add_system_set(
@@ -30,12 +30,6 @@ fn main() {
                 .with_system(move_snake)
                 .with_system(move_enemy)
                 .with_system(check_for_collisions.after(move_snake)),
-        )
-        .add_system_set_to_stage(
-            CoreStage::PostUpdate,
-            SystemSet::new()
-                .with_system(position_translation)
-                .with_system(size_scaling),
         )
         .add_system(game_over.after(move_snake))
         .add_plugins(DefaultPlugins)
@@ -62,20 +56,6 @@ struct Position {
 }
 
 #[derive(Component)]
-struct Size {
-    width: f32,
-    height: f32,
-}
-impl Size {
-    pub fn square(x: f32) -> Self {
-        Self {
-            width: x,
-            height: x,
-        }
-    }
-}
-
-#[derive(Component)]
 struct Food;
 
 #[derive(Component)]
@@ -93,10 +73,10 @@ const ARENA_HEIGHT: u32 = 10;
 
 const FOOD_COLOR: Color = Color::rgb(1.0, 0.0, 1.0);
 
-const AREA_WIDTH: u32 = 500;
-const AREA_HEIGHT: u32 = 500;
+const TIME_STEP: f32 = 1.0 / 60.0;
+const PADDLE_SPEED: f32 = 500.0;
 
-const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
+// const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
 
 fn spawn_snake(mut commands: Commands) {
     commands
@@ -106,14 +86,13 @@ fn spawn_snake(mut commands: Commands) {
                 ..default()
             },
             transform: Transform {
-                scale: Vec3::new(10.0, 10.0, 10.0),
+                translation: Vec3::new(0.0, 200.0, 0.0),
+                scale: Vec3::new(30.0, 30.0, 30.0),
                 ..default()
             },
             ..default()
         })
-        .insert(SnakeHead)
-        .insert(Position { x: 3, y: 3 })
-        .insert(Size::square(0.8));
+        .insert(SnakeHead);
 }
 
 fn spawn_enemy(mut commands: Commands) {
@@ -124,84 +103,75 @@ fn spawn_enemy(mut commands: Commands) {
                 ..default()
             },
             transform: Transform {
-                scale: Vec3::new(10.0, 10.0, 20.0),
+                translation: Vec3::new(0.0, 100.0, 0.0),
+                scale: Vec3::new(30.0, 30.0, 30.0),
                 ..default()
             },
             ..default()
         })
         .insert(Enemy)
-        .insert(Position { x: 5, y: 5 })
-        .insert(Size::square(0.8))
         .insert(Collider);
 }
 
-fn spawn_wall(mut commands: Commands) {
-    for n in 0..11 {
-        commands
-            .spawn_bundle(SpriteBundle {
-                sprite: Sprite {
-                    color: WALL_COLOR,
-                    ..default()
-                },
-                transform: Transform {
-                    scale: Vec3::new(10.0, 10.0, 10.0),
-                    ..default()
-                },
-                ..default()
-            })
-            .insert(Wall)
-            .insert(Position { x: -1, y: n-1 })
-            .insert(Size::square(0.8));
+// fn spawn_wall(mut commands: Commands) {
+//     for n in 0..11 {
+//         commands
+//             .spawn_bundle(SpriteBundle {
+//                 sprite: Sprite {
+//                     color: WALL_COLOR,
+//                     ..default()
+//                 },
+//                 transform: Transform {
+//                     scale: Vec3::new(10.0, 10.0, 10.0),
+//                     ..default()
+//                 },
+//                 ..default()
+//             })
+//             .insert(Wall);
         
-        commands
-            .spawn_bundle(SpriteBundle {
-                sprite: Sprite {
-                    color: WALL_COLOR,
-                    ..default()
-                },
-                transform: Transform {
-                    scale: Vec3::new(10.0, 10.0, 10.0),
-                    ..default()
-                },
-                ..default()
-            })
-            .insert(Wall)
-            .insert(Position { x: 10, y: n })
-            .insert(Size::square(0.8));
+//         commands
+//             .spawn_bundle(SpriteBundle {
+//                 sprite: Sprite {
+//                     color: WALL_COLOR,
+//                     ..default()
+//                 },
+//                 transform: Transform {
+//                     scale: Vec3::new(10.0, 10.0, 10.0),
+//                     ..default()
+//                 },
+//                 ..default()
+//             })
+//             .insert(Wall);
             
-        commands
-            .spawn_bundle(SpriteBundle {
-                sprite: Sprite {
-                    color: WALL_COLOR,
-                    ..default()
-                },
-                transform: Transform {
-                    scale: Vec3::new(10.0, 10.0, 10.0),
-                    ..default()
-                },
-                ..default()
-            })
-            .insert(Wall)
-            .insert(Position { x: n, y: -1 })
-            .insert(Size::square(0.8));
+//         commands
+//             .spawn_bundle(SpriteBundle {
+//                 sprite: Sprite {
+//                     color: WALL_COLOR,
+//                     ..default()
+//                 },
+//                 transform: Transform {
+//                     scale: Vec3::new(10.0, 10.0, 10.0),
+//                     ..default()
+//                 },
+//                 ..default()
+//             })
+//             .insert(Wall);
             
-        commands
-            .spawn_bundle(SpriteBundle {
-                sprite: Sprite {
-                    color: WALL_COLOR,
-                    ..default()
-                },
-                transform: Transform {
-                    scale: Vec3::new(10.0, 10.0, 10.0),
-                    ..default()
-                },
-                ..default()
-            })
-            .insert(Wall)
-            .insert(Position { x: n-1, y: 10 })
-            .insert(Size::square(0.8));
-    }
-}
+//         commands
+//             .spawn_bundle(SpriteBundle {
+//                 sprite: Sprite {
+//                     color: WALL_COLOR,
+//                     ..default()
+//                 },
+//                 transform: Transform {
+//                     scale: Vec3::new(10.0, 10.0, 10.0),
+//                     ..default()
+//                 },
+//                 ..default()
+//             })
+//             .insert(Wall);
+//     }
+// }
 
 fn food_spawner(mut commands: Commands) {
     commands
@@ -211,60 +181,46 @@ fn food_spawner(mut commands: Commands) {
                 ..default()
             },
             transform: Transform {
-                scale: Vec3::new(10.0, 10.0, 10.0),
+                translation: Vec3::new(random::<f32>() * 300.0, random::<f32>() * 300.0, 0.0),
+                scale: Vec3::new(20.0, 20.0, 20.0),
                 ..default()
             },
             ..default()
         })
         .insert(Food)
-        .insert(Position {
-            x: (random::<f32>() * ARENA_WIDTH as f32) as i32,
-            y: (random::<f32>() * ARENA_HEIGHT as f32) as i32,
-        })
-        .insert(Size::square(0.8))
         .insert(Collider);
 }
 
 fn move_snake(
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<&mut Position, With<SnakeHead>>,
+    mut query: Query<&mut Transform, With<SnakeHead>>,
 ) {
-    for mut pos in query.iter_mut() {
-        
-        if keyboard_input.pressed(KeyCode::Left) {
-            pos.x -= 1;
-        }
-    
-        if keyboard_input.pressed(KeyCode::Right) {
-            pos.x += 1;
-        }
-    
-        if keyboard_input.pressed(KeyCode::Up) {
-            pos.y += 1;
-        }
-    
-        if keyboard_input.pressed(KeyCode::Down) {
-            pos.y -= 1;
-        }
+    let mut paddle_transform = query.single_mut();
+    let mut xdirection = 0.0;
+    let mut ydirection = 0.0;
+
+    if keyboard_input.pressed(KeyCode::Left) {
+        xdirection -= 1.0;
     }
 
-    for mut pos in query.iter_mut() {
-        if pos.x < 0 {
-            pos.x += 1;
-        }
-
-        if pos.x as u32 >= ARENA_WIDTH {
-            pos.x -= 1;
-        }
-
-        if pos.y < 0 {
-            pos.y += 1;
-        }
-
-        if pos.y as u32 >= ARENA_HEIGHT {
-            pos.y -= 1;
-        }
+    if keyboard_input.pressed(KeyCode::Right) {
+        xdirection += 1.0;
     }
+
+    if keyboard_input.pressed(KeyCode::Up) {
+        ydirection += 1.0;
+    }
+    
+    if keyboard_input.pressed(KeyCode::Down) {
+        ydirection -= 1.0;
+    }
+
+    let new_paddle_xposition = paddle_transform.translation.x + xdirection * PADDLE_SPEED * TIME_STEP;
+    let new_paddle_yposition = paddle_transform.translation.y + ydirection * PADDLE_SPEED * TIME_STEP;
+
+    paddle_transform.translation.x = new_paddle_xposition;
+    paddle_transform.translation.y = new_paddle_yposition;
+
 }
 
 fn move_enemy(
@@ -308,38 +264,13 @@ fn move_enemy(
     }
 }
 
-fn position_translation(mut q: Query<(&Position, &mut Transform)>) {
-    fn convert(pos: f32, bound_window: f32, bound_game: f32) -> f32 {
-        let tile_size = bound_window / bound_game;
-        pos / bound_game * bound_window - (bound_window / 2.) + (tile_size / 2.)
-    }
-    for (pos, mut transform) in q.iter_mut() {
-        transform.translation = Vec3::new(
-            convert(pos.x as f32, AREA_WIDTH as f32, ARENA_WIDTH as f32),
-            convert(pos.y as f32, AREA_HEIGHT as f32, ARENA_HEIGHT as f32),
-            0.0,
-        );
-    }
-}
-
-fn size_scaling(mut q: Query<(&Size, &mut Transform)>) {
-    for (sprite_size, mut transform) in q.iter_mut() {
-        transform.scale = Vec3::new(
-            sprite_size.width / ARENA_WIDTH as f32 * AREA_WIDTH as f32,
-            sprite_size.height / ARENA_HEIGHT as f32 * AREA_HEIGHT as f32,
-            1.0,
-        );
-    }
-}
-
-
 fn check_for_collisions(
     mut commands: Commands,
-    mut head_positions: Query<(Entity, &Transform), With<SnakeHead>>,
+    mut head_positions: Query<&Transform, With<SnakeHead>>,
     collider_query: Query<(Entity, &Transform, Option<&Food>, Option<&Enemy>), With<Collider>>,
     mut game_over_writer: EventWriter<GameOverEvent>,
 ) {
-    let (head_ent, head_transform) = head_positions.single_mut();
+    let head_transform = head_positions.single_mut();
     let head_size = head_transform.scale.truncate();
 
     for (collider_entity, transform, maybe_food, maybe_enemy) in &collider_query {
