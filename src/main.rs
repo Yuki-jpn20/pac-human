@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use rand::prelude::random;
-use bevy::core::FixedTimestep;
+use bevy::time::FixedTimestep;
 
 fn main() {
     App::new()
@@ -36,12 +36,12 @@ fn main() {
         )
         .add_system(game_over.after(move_snake))
         .add_plugins(DefaultPlugins)
-        .add_system(bevy::input::system::exit_on_esc_system)
+        .add_system(bevy::window::close_on_esc)
         .run();
 }
 
 fn setup_camera(mut commands: Commands) {
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+    commands.spawn_bundle(Camera2dBundle::default());
 }
 
 struct GameOverEvent;
