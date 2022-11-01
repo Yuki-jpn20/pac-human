@@ -1,6 +1,9 @@
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    time::FixedTimestep,
+    sprite::collide_aabb::{collide, Collision},
+};
 use rand::prelude::random;
-use bevy::time::FixedTimestep;
 
 fn main() {
     App::new()
@@ -26,7 +29,7 @@ fn main() {
                 .with_run_criteria(FixedTimestep::step(0.150))
                 .with_system(move_snake)
                 .with_system(move_enemy)
-                .with_system(snake_eating.after(move_snake)),
+                .with_system(check_for_collisions.after(move_snake)),
         )
         .add_system_set_to_stage(
             CoreStage::PostUpdate,
@@ -78,6 +81,9 @@ struct Food;
 #[derive(Component)]
 struct Wall;
 
+#[derive(Component)]
+struct Collider;
+
 const SNAKE_HEAD_COLOR: Color = Color::rgb(0.7, 0.7, 0.7);
 
 const ENEMY_COLOR: Color = Color::rgb(1.0, 0.0, 0.0);
@@ -125,7 +131,8 @@ fn spawn_enemy(mut commands: Commands) {
         })
         .insert(Enemy)
         .insert(Position { x: 5, y: 5 })
-        .insert(Size::square(0.8));
+        .insert(Size::square(0.8))
+        .insert(Collider);
 }
 
 fn spawn_wall(mut commands: Commands) {
@@ -214,7 +221,8 @@ fn food_spawner(mut commands: Commands) {
             x: (random::<f32>() * ARENA_WIDTH as f32) as i32,
             y: (random::<f32>() * ARENA_HEIGHT as f32) as i32,
         })
-        .insert(Size::square(0.8));
+        .insert(Size::square(0.8))
+        .insert(Collider);
 }
 
 fn move_snake(
@@ -324,35 +332,38 @@ fn size_scaling(mut q: Query<(&Size, &mut Transform)>) {
     }
 }
 
-fn snake_eating(
+
+fn check_for_collisions(
     mut commands: Commands,
-    food_positions: Query<(Entity, &Position), With<Food>>,
-    head_positions: Query<&Position, With<SnakeHead>>,
-    enemy_positions: Query<&Position, With<Enemy>>,
+    mut head_positions: Query<(Entity, &Transform), With<SnakeHead>>,
+    collider_query: Query<(Entity, &Transform, Option<&Food>, Option<&Enemy>), With<Collider>>,
     mut game_over_writer: EventWriter<GameOverEvent>,
 ) {
-    for head_pos in head_positions.iter() {
-        for (ent, food_pos) in food_positions.iter() {
-            if food_pos == head_pos {
-                commands.entity(ent).despawn();
+    let (head_ent, head_transform) = head_positions.single_mut();
+    let head_size = head_transform.scale.truncate();
+
+    for (collider_entity, transform, maybe_food, maybe_enemy) in &collider_query {
+        let collision = collide(
+            head_transform.translation,
+            head_size,
+            transform.translation,
+            transform.scale.truncate(),
+        );
+        if let Some(collision) = collision {
+
+            if maybe_food.is_some() {
+                commands.entity(collider_entity).despawn();
             }
-        }
-    }
-    for head_pos in head_positions.iter() {
-        for enemy_pos in enemy_positions.iter() {
-            if enemy_pos == head_pos {
+
+            if maybe_enemy.is_some() {
                 game_over_writer.send(GameOverEvent);
             }
         }
     }
-    for enemy_pos in enemy_positions.iter() {
-        for (ent, food_pos) in food_positions.iter() {
-            if food_pos == enemy_pos {
-                commands.entity(ent).despawn();
-            }
-        }
-    }
+
 }
+
+
 
 fn game_over(
     mut commands: Commands,
