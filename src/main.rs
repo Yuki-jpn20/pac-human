@@ -7,18 +7,13 @@ use rand::prelude::random;
 
 fn main() {
     App::new()
-        .insert_resource(WindowDescriptor {
-            title: "Snake".to_string(),
-            width: 600.0,
-            height: 600.0,
-            ..default()
-        })
+        .add_plugins(DefaultPlugins)
+        .insert_resource(Scoreboard { score: 0 })
         .add_startup_system(setup_camera)
         .add_startup_system(spawn_snake)
         .add_startup_system(spawn_enemy)
-        //.add_startup_system(spawn_wall)
+        .add_startup_system(spawn_scoreboard)
         .add_event::<GameOverEvent>()
-        //.add_system(snake_movement_input.before(move_snake))
         .add_system_set(
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(1.0))
@@ -28,11 +23,10 @@ fn main() {
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(0.150))
                 .with_system(move_snake)
-                .with_system(move_enemy)
                 .with_system(check_for_collisions.after(move_snake)),
         )
         .add_system(game_over.after(move_snake))
-        .add_plugins(DefaultPlugins)
+        .add_system(update_scoreboard)
         .add_system(bevy::window::close_on_esc)
         .run();
 }
@@ -42,6 +36,10 @@ fn setup_camera(mut commands: Commands) {
 }
 
 struct GameOverEvent;
+
+struct Scoreboard {
+    score: usize,
+}
 
 #[derive(Component)]
 struct SnakeHead;
@@ -59,24 +57,21 @@ struct Position {
 struct Food;
 
 #[derive(Component)]
-struct Wall;
-
-#[derive(Component)]
 struct Collider;
 
 const SNAKE_HEAD_COLOR: Color = Color::rgb(0.7, 0.7, 0.7);
 
 const ENEMY_COLOR: Color = Color::rgb(1.0, 0.0, 0.0);
 
-const ARENA_WIDTH: u32 = 10;
-const ARENA_HEIGHT: u32 = 10;
-
 const FOOD_COLOR: Color = Color::rgb(1.0, 0.0, 1.0);
 
-const TIME_STEP: f32 = 1.0 / 60.0;
-const PADDLE_SPEED: f32 = 500.0;
+const TIME_STEP: f32 = 1.0 / 30.0;
+const PADDLE_SPEED: f32 = 600.0;
 
-// const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
+const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
+const SCOREBOARD_FONT_SIZE: f32 = 40.0;
+const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
+const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 
 fn spawn_snake(mut commands: Commands) {
     commands
@@ -113,65 +108,34 @@ fn spawn_enemy(mut commands: Commands) {
         .insert(Collider);
 }
 
-// fn spawn_wall(mut commands: Commands) {
-//     for n in 0..11 {
-//         commands
-//             .spawn_bundle(SpriteBundle {
-//                 sprite: Sprite {
-//                     color: WALL_COLOR,
-//                     ..default()
-//                 },
-//                 transform: Transform {
-//                     scale: Vec3::new(10.0, 10.0, 10.0),
-//                     ..default()
-//                 },
-//                 ..default()
-//             })
-//             .insert(Wall);
-        
-//         commands
-//             .spawn_bundle(SpriteBundle {
-//                 sprite: Sprite {
-//                     color: WALL_COLOR,
-//                     ..default()
-//                 },
-//                 transform: Transform {
-//                     scale: Vec3::new(10.0, 10.0, 10.0),
-//                     ..default()
-//                 },
-//                 ..default()
-//             })
-//             .insert(Wall);
-            
-//         commands
-//             .spawn_bundle(SpriteBundle {
-//                 sprite: Sprite {
-//                     color: WALL_COLOR,
-//                     ..default()
-//                 },
-//                 transform: Transform {
-//                     scale: Vec3::new(10.0, 10.0, 10.0),
-//                     ..default()
-//                 },
-//                 ..default()
-//             })
-//             .insert(Wall);
-            
-//         commands
-//             .spawn_bundle(SpriteBundle {
-//                 sprite: Sprite {
-//                     color: WALL_COLOR,
-//                     ..default()
-//                 },
-//                 transform: Transform {
-//                     scale: Vec3::new(10.0, 10.0, 10.0),
-//                     ..default()
-//                 },
-//                 ..default()
-//             })
-//             .insert(Wall);
-//     }
-// }
+fn spawn_scoreboard(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.spawn_bundle(
+        TextBundle::from_sections([
+            TextSection::new(
+                "Score: ",
+                TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: SCOREBOARD_FONT_SIZE,
+                    color: TEXT_COLOR,
+                },
+            ),
+            TextSection::from_style(TextStyle {
+                font: asset_server.load("fonts/FiraMono-Medium.ttf"),
+                font_size: SCOREBOARD_FONT_SIZE,
+                color: SCORE_COLOR,
+            }),
+        ])
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            position: UiRect {
+                top: SCOREBOARD_TEXT_PADDING,
+                left: SCOREBOARD_TEXT_PADDING,
+                ..default()
+            },
+            ..default()
+        }),
+    );
+}
 
 fn food_spawner(mut commands: Commands) {
     commands
@@ -223,49 +187,9 @@ fn move_snake(
 
 }
 
-fn move_enemy(
-    mut query: Query<&mut Position, With<Enemy>>,
-) {
-    let dir = (random::<f32>() * 4.) as i32;
-    for mut pos in query.iter_mut() {
-        if dir == 0 {
-            pos.x -= 1;
-        }
-
-        if dir == 1 {
-            pos.x += 1;
-        }
-
-        if dir == 2 {
-            pos.y += 1;
-        }
-
-        if dir == 3 {
-            pos.y -= 1;
-        }
-    }
-
-    for mut pos in query.iter_mut() {
-        if pos.x < 0 {
-            pos.x += 1;
-        }
-
-        if pos.x as u32 >= ARENA_WIDTH {
-            pos.x -= 1;
-        }
-
-        if pos.y < 0 {
-            pos.y += 1;
-        }
-
-        if pos.y as u32 >= ARENA_HEIGHT {
-            pos.y -= 1;
-        }
-    }
-}
-
 fn check_for_collisions(
     mut commands: Commands,
+    mut scoreboard: ResMut<Scoreboard>,
     mut head_positions: Query<&Transform, With<SnakeHead>>,
     collider_query: Query<(Entity, &Transform, Option<&Food>, Option<&Enemy>), With<Collider>>,
     mut game_over_writer: EventWriter<GameOverEvent>,
@@ -283,6 +207,7 @@ fn check_for_collisions(
         if let Some(collision) = collision {
 
             if maybe_food.is_some() {
+                scoreboard.score += 1;
                 commands.entity(collider_entity).despawn();
             }
 
@@ -294,7 +219,10 @@ fn check_for_collisions(
 
 }
 
-
+fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text>) {
+    let mut text = query.single_mut();
+    text.sections[1].value = scoreboard.score.to_string();
+}
 
 fn game_over(
     mut commands: Commands,
